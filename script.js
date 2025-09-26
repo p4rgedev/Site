@@ -1,3 +1,4 @@
+// Firebase config and initialization
 const firebaseConfig = {
   apiKey: "AIzaSyBlODXx-DUc854md33vCUQmfFmgbVVr2Z8",
   authDomain: "wallpuncherhub.firebaseapp.com",
@@ -14,7 +15,7 @@ const games = [
   { name: "slope", cover: "games/slope-plus/cover.png", code: "https://p4rgedev.github.io/slope-plus/" }
 ];
 
-// Hashing function for passwords (SHA-256)
+// Hash password function (SHA-256)
 async function hashPassword(password) {
   const encoder = new TextEncoder();
   const data = encoder.encode(password);
@@ -23,10 +24,16 @@ async function hashPassword(password) {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// Elements
 const loginForm = document.getElementById('login-form');
 const loginSection = document.getElementById('login-section');
+const registerSection = document.getElementById('register-section');
 const appSection = document.getElementById('app-section');
 const loginError = document.getElementById('login-error');
+
+const registerForm = document.getElementById('register-form');
+const registerError = document.getElementById('register-error');
+const registerSuccess = document.getElementById('register-success');
 
 const searchInput = document.getElementById('search-input');
 const gamesList = document.getElementById('games-list');
@@ -48,6 +55,9 @@ const ytUrlInput = document.getElementById('yt-url-input');
 const ytUrlBtn = document.getElementById('yt-url-btn');
 const ytPlayer = document.getElementById('yt-player');
 
+const showRegisterBtn = document.getElementById('show-register');
+const showLoginBtn = document.getElementById('show-login');
+
 const YOUTUBE_API_KEYS = [
   'AIzaSyBoL0xrQEnNSAD1eSXLuLIMLrHmAsmw3ZQ',
   'AIzaSyDstZPwfimboVJWSWW-txfej9gPUWR9PiE',
@@ -60,7 +70,24 @@ function getNextApiKey() {
   return key;
 }
 
-// Login with Firestore username/password check
+// Toggle views
+showRegisterBtn.addEventListener('click', () => {
+  loginSection.style.display = 'none';
+  registerSection.style.display = 'block';
+  loginError.style.display = 'none';
+  registerError.style.display = 'none';
+  registerSuccess.style.display = 'none';
+});
+
+showLoginBtn.addEventListener('click', () => {
+  registerSection.style.display = 'none';
+  loginSection.style.display = 'block';
+  loginError.style.display = 'none';
+  registerError.style.display = 'none';
+  registerSuccess.style.display = 'none';
+});
+
+// Login handler
 loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   loginError.style.display = 'none';
@@ -88,6 +115,7 @@ loginForm.addEventListener('submit', async (e) => {
 
     if (userData.passwordHash === passwordHash) {
       loginSection.style.display = 'none';
+      registerSection.style.display = 'none';
       appSection.style.display = 'block';
       renderGames(games);
     } else {
@@ -99,6 +127,48 @@ loginForm.addEventListener('submit', async (e) => {
   }
 });
 
+// Registration handler
+registerForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  registerError.style.display = 'none';
+  registerSuccess.style.display = 'none';
+
+  const username = document.getElementById('reg-username').value.trim();
+  const password = document.getElementById('reg-password').value;
+
+  if (!username || !password) {
+    registerError.textContent = 'Please fill in both fields.';
+    registerError.style.display = 'block';
+    return;
+  }
+
+  try {
+    const usersRef = db.collection('users');
+    const existingUser = await usersRef.where('username', '==', username).get();
+    if (!existingUser.empty) {
+      registerError.textContent = 'Username already taken.';
+      registerError.style.display = 'block';
+      return;
+    }
+
+    const passwordHash = await hashPassword(password);
+
+    await usersRef.doc(username).set({
+      username: username,
+      passwordHash: passwordHash
+    });
+
+    registerSuccess.textContent = 'Registration successful! You can now log in.';
+    registerSuccess.style.display = 'block';
+    registerForm.reset();
+  } catch (error) {
+    console.error(error);
+    registerError.textContent = 'Error during registration. Please try again.';
+    registerError.style.display = 'block';
+  }
+});
+
+// Search games
 searchInput.addEventListener('input', () => {
   const query = searchInput.value.toLowerCase();
   const filtered = games.filter(game => game.name.toLowerCase().includes(query));
@@ -214,8 +284,6 @@ tabContact.addEventListener('click', () => activateTab('contact'));
     }
   });
 });
-
-// Fetch videos from YouTube as before (no changes here)
 async function fetchChannelVideosFiltered(channelName, keyword, maxResults = 5) {
   const channelRes = await fetch(`https://www.googleapis.com/youtube/v3/search?key=${getNextApiKey()}&part=snippet&type=channel&q=${encodeURIComponent(channelName)}&maxResults=1`);
   const channelData = await channelRes.json();
