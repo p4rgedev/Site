@@ -1,0 +1,9 @@
+- [] Site wide banning
+- [] local games
+- [] improve on api token usage
+- [] more games
+- [] chatroom system
+- [] track usage data as much as possible (api key usage and most played games to get rid of extras)
+- [no] e-book reader
+- [no] movies
+- [no] anime
