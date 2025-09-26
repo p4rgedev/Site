@@ -40,9 +40,12 @@ const gamesList = document.getElementById('games-list');
 
 const tabGames = document.getElementById('tab-games');
 const tabYoutube = document.getElementById('tab-youtube');
+const tabChat = document.getElementById('tab-chat');
 const tabContact = document.getElementById('tab-contact');
+
 const gameSection = document.getElementById('game-section');
 const youtubeSection = document.getElementById('youtube-section');
+const chatSection = document.getElementById('chat-section');
 const contactSection = document.getElementById('contact-section');
 
 const ytChannelInput = document.getElementById('yt-channel-input');
@@ -54,6 +57,10 @@ const ytResults = document.getElementById('yt-results');
 const ytUrlInput = document.getElementById('yt-url-input');
 const ytUrlBtn = document.getElementById('yt-url-btn');
 const ytPlayer = document.getElementById('yt-player');
+
+const chatMessages = document.getElementById('chat-messages');
+const chatForm = document.getElementById('chat-form');
+const chatInput = document.getElementById('chat-input');
 
 const showRegisterBtn = document.getElementById('show-register');
 const showLoginBtn = document.getElementById('show-login');
@@ -69,6 +76,8 @@ function getNextApiKey() {
   currentKeyIndex = (currentKeyIndex + 1) % YOUTUBE_API_KEYS.length;
   return key;
 }
+
+let currentUser = null;
 
 // Toggle views
 showRegisterBtn.addEventListener('click', () => {
@@ -114,10 +123,30 @@ loginForm.addEventListener('submit', async (e) => {
     const userData = userDoc.data();
 
     if (userData.passwordHash === passwordHash) {
+      currentUser = {
+        username: username,
+        isAdmin: !!userData.isAdmin,
+        friends: userData.friends || [],
+        blocked: userData.blocked || []
+      };
+      sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+
+      // Update local history of logged usernames
+      let loggedUsernames = JSON.parse(localStorage.getItem('loggedUsernames') || '[]');
+      if (!loggedUsernames.includes(currentUser.username)) {
+        loggedUsernames.push(currentUser.username);
+        localStorage.setItem('loggedUsernames', JSON.stringify(loggedUsernames));
+      }
+
+      // Check ban status immediately
+      await checkBans();
+
       loginSection.style.display = 'none';
       registerSection.style.display = 'none';
       appSection.style.display = 'block';
       renderGames(games);
+      initChat();
+      applyAdminUI(currentUser.isAdmin);
     } else {
       loginError.style.display = 'block';
     }
@@ -155,7 +184,10 @@ registerForm.addEventListener('submit', async (e) => {
 
     await usersRef.doc(username).set({
       username: username,
-      passwordHash: passwordHash
+      passwordHash: passwordHash,
+      isAdmin: false,
+      friends: [],
+      blocked: []
     });
 
     registerSuccess.textContent = 'Registration successful! You can now log in.';
@@ -168,7 +200,7 @@ registerForm.addEventListener('submit', async (e) => {
   }
 });
 
-// Search games
+// Render games list
 searchInput.addEventListener('input', () => {
   const query = searchInput.value.toLowerCase();
   const filtered = games.filter(game => game.name.toLowerCase().includes(query));
@@ -207,211 +239,153 @@ function renderGames(list) {
 
 // Tabs switching
 function activateTab(tab) {
-  if (tab === 'games') {
-    tabGames.classList.add('active');
-    tabGames.setAttribute('aria-selected', 'true');
-    tabGames.tabIndex = 0;
+  tabGames.classList.toggle('active', tab === 'games');
+  tabYoutube.classList.toggle('active', tab === 'youtube');
+  tabChat.classList.toggle('active', tab === 'chat');
+  tabContact.classList.toggle('active', tab === 'contact');
 
-    tabYoutube.classList.remove('active');
-    tabYoutube.setAttribute('aria-selected', 'false');
-    tabYoutube.tabIndex = -1;
+  gameSection.style.display = (tab === 'games') ? 'block' : 'none';
+  youtubeSection.style.display = (tab === 'youtube') ? 'block' : 'none';
+  chatSection.style.display = (tab === 'chat') ? 'block' : 'none';
+  contactSection.style.display = (tab === 'contact') ? 'block' : 'none';
 
-    tabContact.classList.remove('active');
-    tabContact.setAttribute('aria-selected', 'false');
-    tabContact.tabIndex = -1;
-
-    gameSection.classList.add('active');
-    youtubeSection.classList.remove('active');
-    contactSection.classList.remove('active');
-  } else if (tab === 'youtube') {
-    tabYoutube.classList.add('active');
-    tabYoutube.setAttribute('aria-selected', 'true');
-    tabYoutube.tabIndex = 0;
-
-    tabGames.classList.remove('active');
-    tabGames.setAttribute('aria-selected', 'false');
-    tabGames.tabIndex = -1;
-
-    tabContact.classList.remove('active');
-    tabContact.setAttribute('aria-selected', 'false');
-    tabContact.tabIndex = -1;
-
-    youtubeSection.classList.add('active');
-    gameSection.classList.remove('active');
-    contactSection.classList.remove('active');
-  } else if (tab === 'contact') {
-    tabContact.classList.add('active');
-    tabContact.setAttribute('aria-selected', 'true');
-    tabContact.tabIndex = 0;
-
-    tabGames.classList.remove('active');
-    tabGames.setAttribute('aria-selected', 'false');
-    tabGames.tabIndex = -1;
-
-    tabYoutube.classList.remove('active');
-    tabYoutube.setAttribute('aria-selected', 'false');
-    tabYoutube.tabIndex = -1;
-
-    contactSection.classList.add('active');
-    gameSection.classList.remove('active');
-    youtubeSection.classList.remove('active');
-  }
+  tabGames.setAttribute('aria-selected', tab === 'games');
+  tabYoutube.setAttribute('aria-selected', tab === 'youtube');
+  tabChat.setAttribute('aria-selected', tab === 'chat');
+  tabContact.setAttribute('aria-selected', tab === 'contact');
 }
 
 tabGames.addEventListener('click', () => activateTab('games'));
 tabYoutube.addEventListener('click', () => activateTab('youtube'));
+tabChat.addEventListener('click', () => activateTab('chat'));
 tabContact.addEventListener('click', () => activateTab('contact'));
 
-[tabGames, tabYoutube, tabContact].forEach(tab => {
+// Keyboard navigation for tabs
+[tabGames, tabYoutube, tabChat, tabContact].forEach(tab => {
   tab.addEventListener('keydown', e => {
     if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
       e.preventDefault();
-      if (tab === tabGames) {
-        activateTab('youtube');
-        tabYoutube.focus();
-      } else if (tab === tabYoutube) {
-        if (e.key === 'ArrowRight') {
-          activateTab('contact');
-          tabContact.focus();
-        } else {
-          activateTab('games');
-          tabGames.focus();
-        }
-      } else if (tab === tabContact) {
-        activateTab('games');
-        tabGames.focus();
-      }
+      const tabs = [tabGames, tabYoutube, tabChat, tabContact];
+      let idx = tabs.indexOf(tab);
+      if (e.key === 'ArrowRight') idx = (idx + 1) % tabs.length;
+      else idx = (idx - 1 + tabs.length) % tabs.length;
+      activateTab(tabs[idx].id.replace('tab-', ''));
+      tabs[idx].focus();
     }
   });
 });
-async function fetchChannelVideosFiltered(channelName, keyword, maxResults = 5) {
-  const channelRes = await fetch(`https://www.googleapis.com/youtube/v3/search?key=${getNextApiKey()}&part=snippet&type=channel&q=${encodeURIComponent(channelName)}&maxResults=1`);
-  const channelData = await channelRes.json();
-  if (!channelData.items || channelData.items.length === 0) {
-    throw new Error('Channel not found');
-  }
-  const channelId = channelData.items[0].snippet.channelId;
 
-  const channelDetailsRes = await fetch(`https://www.googleapis.com/youtube/v3/channels?key=${getNextApiKey()}&part=contentDetails&id=${channelId}`);
-  const channelDetailsData = await channelDetailsRes.json();
-  if (!channelDetailsData.items || channelDetailsData.items.length === 0) {
-    throw new Error('Channel details not found');
-  }
-  const uploadsPlaylistId = channelDetailsData.items[0].contentDetails.relatedPlaylists.uploads;
+// Initialize chat with message listener and admin delete buttons
+function initChat() {
+  chatMessages.innerHTML = '';
+  db.collection('messages').orderBy('timestamp').limit(100)
+    .onSnapshot(snapshot => {
+      chatMessages.innerHTML = '';
+      snapshot.forEach(doc => {
+        const msg = doc.data();
+        if (currentUser.blocked.includes(msg.username)) return;
 
-  let videos = [];
-  let nextPageToken = '';
-  const pageSize = 50;
-  const lowerKeyword = keyword.toLowerCase();
+        const msgDiv = document.createElement('div');
+        msgDiv.style.marginBottom = '0.5rem';
+        msgDiv.textContent = `${msg.username}: ${msg.text}`;
 
-  while (videos.length < maxResults) {
-    const playlistRes = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?key=${getNextApiKey()}&part=snippet&playlistId=${uploadsPlaylistId}&maxResults=${pageSize}&pageToken=${nextPageToken}`);
-    const playlistData = await playlistRes.json();
-    if (!playlistData.items) break;
+        if (currentUser.isAdmin) {
+          const delBtn = document.createElement('button');
+          delBtn.textContent = 'Delete';
+          delBtn.style.marginLeft = '1rem';
+          delBtn.onclick = () => {
+            db.collection('messages').doc(doc.id).delete()
+              .catch(err => console.error('Error deleting message:', err));
+          };
+          msgDiv.appendChild(delBtn);
+        }
 
-    const filtered = playlistData.items.filter(item =>
-      item.snippet.title.toLowerCase().includes(lowerKeyword)
-    );
-
-    videos = videos.concat(filtered);
-
-    if (!playlistData.nextPageToken) break;
-    nextPageToken = playlistData.nextPageToken;
-  }
-
-  return videos.slice(0, maxResults);
+        chatMessages.appendChild(msgDiv);
+      });
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    });
 }
 
-ytSearchBtn.addEventListener('click', async () => {
-  let channelName = ytChannelInput.value.trim();
-  let keywords = ytSearchInput.value.trim();
-  let count = parseInt(ytCountInput.value);
-  if (!count || count <= 0) count = 5;
-
-  ytResults.innerHTML = '<p>Loading...</p>';
-  ytPlayer.style.display = 'none';
-  ytPlayer.src = '';
+// Chat message send handler
+chatForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const text = chatInput.value.trim();
+  if (!text || !currentUser) return;
 
   try {
-    let videos = [];
-
-    if (channelName) {
-      videos = await fetchChannelVideosFiltered(channelName, keywords, count);
-    } else if (keywords) {
-      const videosUrl = `https://www.googleapis.com/youtube/v3/search?key=${getNextApiKey()}&part=snippet&q=${encodeURIComponent(keywords)}&maxResults=${count}&type=video`;
-      const videosRes = await fetch(videosUrl);
-      const videosData = await videosRes.json();
-      videos = videosData.items || [];
-    } else {
-      const videosUrl = `https://www.googleapis.com/youtube/v3/videos?key=${getNextApiKey()}&part=snippet&chart=mostPopular&maxResults=${count}&regionCode=US`;
-      const videosRes = await fetch(videosUrl);
-      const videosData = await videosRes.json();
-      videos = videosData.items || [];
-    }
-
-    if (videos.length === 0) {
-      ytResults.innerHTML = '<p>No videos found.</p>';
-      return;
-    }
-
-    ytResults.innerHTML = '';
-    videos.forEach(item => {
-      const videoId = item.id.videoId || item.snippet.resourceId?.videoId || item.id;
-      const title = item.snippet.title;
-      const thumbnail = item.snippet.thumbnails?.medium?.url || '';
-
-      const card = document.createElement('div');
-      card.className = 'yt-video-card';
-
-      const thumbImg = document.createElement('img');
-      thumbImg.src = thumbnail;
-      thumbImg.alt = title;
-
-      const titleDiv = document.createElement('div');
-      titleDiv.textContent = title;
-
-      card.appendChild(thumbImg);
-      card.appendChild(titleDiv);
-      card.tabIndex = 0;
-
-      card.addEventListener('click', () => {
-        ytPlayer.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-        ytPlayer.style.display = 'block';
-        ytPlayer.scrollIntoView({behavior: 'smooth'});
-      });
-
-      card.addEventListener('keydown', e => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          card.click();
-        }
-      });
-
-      ytResults.appendChild(card);
+    await db.collection('messages').add({
+      username: currentUser.username,
+      text: text,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
+    chatInput.value = '';
   } catch (error) {
-    ytResults.innerHTML = '<p>Error loading results.</p>';
-    console.error(error);
+    console.error('Error sending message:', error);
   }
 });
 
-// Embed video from pasted YouTube URL
-ytUrlBtn.addEventListener('click', () => {
-  const url = ytUrlInput.value.trim();
-  if (!url) return;
-  const videoId = extractVideoID(url);
-  if (!videoId) {
-    alert('Invalid YouTube URL.');
-    return;
-  }
-  ytPlayer.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-  ytPlayer.style.display = 'block';
-  ytPlayer.scrollIntoView({ behavior: 'smooth' });
-});
+// Apply admin UI controls if user is admin
+function applyAdminUI(isAdmin) {
+  if (!isAdmin) return;
+  console.log("Admin features enabled");
+  // Further UI controls can be added here (e.g., ban management)
+}
 
-// Helper function to extract YouTube video ID from URL
-function extractVideoID(url) {
-  const regex = /(?:youtube\.com\/.*v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
-  const match = url.match(regex);
-  return match ? match[1] : null;
+// Check bans for all logged usernames and redirect banned users
+async function checkBans() {
+  // Get previously logged usernames from localStorage
+  const loggedUsernames = JSON.parse(localStorage.getItem('loggedUsernames') || '[]');
+
+  // Include current user username if not in list
+  if (currentUser && !loggedUsernames.includes(currentUser.username)) {
+    loggedUsernames.push(currentUser.username);
+    localStorage.setItem('loggedUsernames', JSON.stringify(loggedUsernames));
+  }
+
+  if (loggedUsernames.length === 0) return;
+
+  try {
+    const bansSnapshot = await db.collection('bans').get();
+    let banInfo = null;
+
+    bansSnapshot.forEach(doc => {
+      const ban = doc.data();
+      const bannedSet = new Set(ban.bannedUsernames || []);
+      for (const user of loggedUsernames) {
+        if (bannedSet.has(user)) {
+          banInfo = ban;
+          return;
+        }
+      }
+    });
+
+    if (banInfo) {
+      // Mark all logged usernames as banned in localStorage
+      localStorage.setItem('isBANNED', 'true');
+      localStorage.setItem('banDetails', JSON.stringify(banInfo));
+
+      // Redirect to about:blank with ban info overlay
+      window.location.href = 'about:blank';
+      document.write(`
+        <style>
+          body {
+            display:flex; justify-content:center; align-items:center; height:100vh;
+            background:#000; color:#fff; font-family:sans-serif; text-align:center; padding:1rem;
+          }
+          a { color:#0af; }
+          div { max-width: 600px; }
+        </style>
+        <div>
+          <h1>You are banned</h1>
+          <p><strong>Reason:</strong> ${banInfo.reason}</p>
+          <p><strong>Ban Date:</strong> ${new Date(banInfo.banDate?.seconds * 1000).toLocaleString()}</p>
+          <p><strong>Banned By:</strong> ${banInfo.bannedBy}</p>
+          <p><strong>Banned Accounts:</strong> ${banInfo.bannedUsernames.join(', ')}</p>
+          <p>To appeal, email <a href="mailto:p4rgedev-c@outlook.com">p4rgedev-c@outlook.com</a> with all information you have on this screen.</p>
+        </div>
+      `);
+    }
+  } catch (error) {
+    console.error('Error checking bans:', error);
+  }
 }
