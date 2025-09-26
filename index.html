@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -151,9 +150,9 @@
   const USERNAME = 'Mark';
   const PASSWORD = 'Hamlin';
 
-  // Update this array with your games
+  // Update this array with your student games
   const games = [
-    { name: "Slope", cover: "slope-plus/cover.png", code: "https://p4rgedev.github.io/slope-plus/" }
+    { name: "slope", cover: "games/slope-plus/cover.png", code: "https://p4rgedev.github.io/slope-plus/" }
   ];
 
   const loginForm = document.getElementById('login-form');
@@ -196,7 +195,7 @@
 
       const link = document.createElement('a');
       link.href = game.code;
-      link.target = '_blank';
+      // NO target attribute here — opens in same tab
       link.rel = 'noopener noreferrer';
       link.title = `Play ${game.name}`;
 
