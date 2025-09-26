@@ -90,10 +90,10 @@
     color: black;
     font-weight: bold;
   }
-  #game-section, #youtube-section {
+  #game-section, #youtube-section, #contact-section {
     display: none;
   }
-  #game-section.active, #youtube-section.active {
+  #game-section.active, #youtube-section.active, #contact-section.active {
     display: block;
   }
   #search-input, #yt-channel-input, #yt-search-input, #yt-count-input, #yt-url-input {
@@ -139,6 +139,9 @@
     border-radius: 5px;
     margin-top: 1rem;
   }
+  #contact-section p {
+    font-size: 1.1rem;
+  }
   @media (max-width: 400px) {
     header h1 {
       font-size: 1.2rem;
@@ -175,6 +178,7 @@
     <div class="tabs" role="tablist">
       <div class="tab active" role="tab" tabindex="0" id="tab-games" aria-controls="game-section" aria-selected="true">Games</div>
       <div class="tab" role="tab" tabindex="-1" id="tab-youtube" aria-controls="youtube-section" aria-selected="false">YouTube</div>
+      <div class="tab" role="tab" tabindex="-1" id="tab-contact" aria-controls="contact-section" aria-selected="false">Contact</div>
     </div>
 
     <section id="game-section" class="active" role="tabpanel" aria-labelledby="tab-games" tabindex="0">
@@ -204,6 +208,10 @@
 
       <iframe id="yt-player" class="youtube-embed" src="" allowfullscreen style="display:none;"></iframe>
     </section>
+
+    <section id="contact-section" role="tabpanel" aria-labelledby="tab-contact" tabindex="0" style="padding: 1rem 0;">
+      <p>Contact: <a href="mailto:p4rgedev-c@outlook.com" style="color: white; text-decoration: underline;">p4rgedev-c@outlook.com</a></p>
+    </section>
   </section>
 </main>
 
@@ -225,8 +233,10 @@
 
   const tabGames = document.getElementById('tab-games');
   const tabYoutube = document.getElementById('tab-youtube');
+  const tabContact = document.getElementById('tab-contact');
   const gameSection = document.getElementById('game-section');
   const youtubeSection = document.getElementById('youtube-section');
+  const contactSection = document.getElementById('contact-section');
 
   const ytChannelInput = document.getElementById('yt-channel-input');
   const ytSearchInput = document.getElementById('yt-search-input');
@@ -309,9 +319,13 @@
       tabYoutube.classList.remove('active');
       tabYoutube.setAttribute('aria-selected', 'false');
       tabYoutube.tabIndex = -1;
+      tabContact.classList.remove('active');
+      tabContact.setAttribute('aria-selected', 'false');
+      tabContact.tabIndex = -1;
 
       gameSection.classList.add('active');
       youtubeSection.classList.remove('active');
+      contactSection.classList.remove('active');
     } else if (tab === 'youtube') {
       tabYoutube.classList.add('active');
       tabYoutube.setAttribute('aria-selected', 'true');
@@ -319,23 +333,50 @@
       tabGames.classList.remove('active');
       tabGames.setAttribute('aria-selected', 'false');
       tabGames.tabIndex = -1;
+      tabContact.classList.remove('active');
+      tabContact.setAttribute('aria-selected', 'false');
+      tabContact.tabIndex = -1;
 
       youtubeSection.classList.add('active');
       gameSection.classList.remove('active');
+      contactSection.classList.remove('active');
+    } else if (tab === 'contact') {
+      tabContact.classList.add('active');
+      tabContact.setAttribute('aria-selected', 'true');
+      tabContact.tabIndex = 0;
+      tabGames.classList.remove('active');
+      tabGames.setAttribute('aria-selected', 'false');
+      tabGames.tabIndex = -1;
+      tabYoutube.classList.remove('active');
+      tabYoutube.setAttribute('aria-selected', 'false');
+      tabYoutube.tabIndex = -1;
+
+      contactSection.classList.add('active');
+      gameSection.classList.remove('active');
+      youtubeSection.classList.remove('active');
     }
   }
 
   tabGames.addEventListener('click', () => activateTab('games'));
   tabYoutube.addEventListener('click', () => activateTab('youtube'));
+  tabContact.addEventListener('click', () => activateTab('contact'));
 
-  [tabGames, tabYoutube].forEach(tab => {
+  [tabGames, tabYoutube, tabContact].forEach(tab => {
     tab.addEventListener('keydown', e => {
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
         e.preventDefault();
         if (tab === tabGames) {
           activateTab('youtube');
           tabYoutube.focus();
-        } else {
+        } else if (tab === tabYoutube) {
+          if (e.key === 'ArrowRight') {
+            activateTab('contact');
+            tabContact.focus();
+          } else {
+            activateTab('games');
+            tabGames.focus();
+          }
+        } else if (tab === tabContact) {
           activateTab('games');
           tabGames.focus();
         }
@@ -346,7 +387,7 @@
   // YouTube search with channel & keyword logic
   ytSearchBtn.addEventListener('click', async () => {
     let channelName = ytChannelInput.value.trim();
-    let keywords = ytSearchInput.value.trim();
+    let keywords = ytSearchInput.value.trim().toLowerCase();
     let count = parseInt(ytCountInput.value);
     if (!count || count <= 0) count = 5;
 
@@ -355,97 +396,59 @@
     ytPlayer.src = '';
 
     try {
-      let channelId = null;
+      let videos = [];
+
       if (channelName) {
-        // Get channel ID from name
+        // Step 1: get channel ID
         const channelRes = await fetch(`https://www.googleapis.com/youtube/v3/search?key=${getNextApiKey()}&part=snippet&type=channel&q=${encodeURIComponent(channelName)}&maxResults=1`);
         const channelData = await channelRes.json();
-        if (channelData.items && channelData.items.length > 0) {
-          channelId = channelData.items[0].snippet.channelId;
-        } else {
+        if (!channelData.items || channelData.items.length === 0) {
           ytResults.innerHTML = '<p>No channel found with that name.</p>';
           return;
         }
-      }
+        const channelId = channelData.items[0].snippet.channelId;
 
-      let videosUrl = '';
-      if (channelId) {
-        videosUrl = `https://www.googleapis.com/youtube/v3/search?key=${getNextApiKey()}&part=snippet&channelId=${channelId}&maxResults=${count}&order=date&type=video`;
+        // Step 2: get channel details to find uploads playlist ID
+        const channelDetailsRes = await fetch(`https://www.googleapis.com/youtube/v3/channels?key=${getNextApiKey()}&part=contentDetails&id=${channelId}`);
+        const channelDetailsData = await channelDetailsRes.json();
+        if (!channelDetailsData.items || channelDetailsData.items.length === 0) {
+          ytResults.innerHTML = '<p>Unable to fetch channel details.</p>';
+          return;
+        }
+        const uploadsPlaylistId = channelDetailsData.items[0].contentDetails.relatedPlaylists.uploads;
+
+        // Step 3: get videos from uploads playlist
+        let nextPageToken = '';
+        const pageSize = 50; // max allowed per request
+        let allVideos = [];
+        do {
+          const playlistRes = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?key=${getNextApiKey()}&part=snippet&playlistId=${uploadsPlaylistId}&maxResults=${pageSize}&pageToken=${nextPageToken}`);
+          const playlistData = await playlistRes.json();
+          if (!playlistData.items) break;
+          allVideos = allVideos.concat(playlistData.items);
+          nextPageToken = playlistData.nextPageToken || '';
+        } while (nextPageToken && allVideos.length < 200); // limit to first 200 videos for performance
+
+        // Step 4: filter videos by keyword if provided
+        if (keywords) {
+          videos = allVideos.filter(item => item.snippet.title.toLowerCase().includes(keywords));
+        } else {
+          videos = allVideos;
+        }
+
+        // Limit to 'count' videos
+        videos = videos.slice(0, count);
+
       } else if (keywords) {
-        videosUrl = `https://www.googleapis.com/youtube/v3/search?key=${getNextApiKey()}&part=snippet&q=${encodeURIComponent(keywords)}&maxResults=${count}&type=video`;
+        // Search by keywords globally
+        const videosUrl = `https://www.googleapis.com/youtube/v3/search?key=${getNextApiKey()}&part=snippet&q=${encodeURIComponent(keywords)}&maxResults=${count}&type=video`;
+        const videosRes = await fetch(videosUrl);
+        const videosData = await videosRes.json();
+        videos = videosData.items || [];
       } else {
-        videosUrl = `https://www.googleapis.com/youtube/v3/videos?key=${getNextApiKey()}&part=snippet&chart=mostPopular&maxResults=${count}&regionCode=US`;
-      }
-
-      const videosRes = await fetch(videosUrl);
-      const videosData = await videosRes.json();
-      if (!videosData.items || videosData.items.length === 0) {
-        ytResults.innerHTML = '<p>No videos found.</p>';
-        return;
-      }
-
-      ytResults.innerHTML = '';
-      videosData.items.forEach(item => {
-        const videoId = item.id.videoId || item.id;
-        const title = item.snippet.title;
-        const thumbnail = item.snippet.thumbnails.medium.url;
-
-        const card = document.createElement('div');
-        card.className = 'yt-video-card';
-
-        const thumbImg = document.createElement('img');
-        thumbImg.src = thumbnail;
-        thumbImg.alt = title;
-
-        const titleDiv = document.createElement('div');
-        titleDiv.textContent = title;
-
-        card.appendChild(thumbImg);
-        card.appendChild(titleDiv);
-        card.tabIndex = 0;
-
-        card.addEventListener('click', () => {
-          ytPlayer.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-          ytPlayer.style.display = 'block';
-          ytPlayer.scrollIntoView({behavior: 'smooth'});
-        });
-
-        card.addEventListener('keydown', e => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            card.click();
-          }
-        });
-
-        ytResults.appendChild(card);
-      });
-
-    } catch (error) {
-      ytResults.innerHTML = '<p>Error loading results.</p>';
-      console.error(error);
-    }
-  });
-
-  // Embed from pasted URL
-  ytUrlBtn.addEventListener('click', () => {
-    const url = ytUrlInput.value.trim();
-    if (!url) return;
-    const videoId = extractVideoID(url);
-    if (!videoId) {
-      alert('Invalid YouTube URL.');
-      return;
-    }
-    ytPlayer.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-    ytPlayer.style.display = 'block';
-    ytPlayer.scrollIntoView({behavior: 'smooth'});
-  });
-
-  // Helper to extract video ID from YouTube URL
-  function extractVideoID(url) {
-    const regex = /(?:youtube\.com\/.*v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
-    const match = url.match(regex);
-    return match ? match[1] : null;
-  }
-</script>
-</body>
-</html>
+        // Most popular videos globally
+        const videosUrl = `https://www.googleapis.com/youtube/v3/videos?key=${getNextApiKey()}&part=snippet&chart=mostPopular&maxResults=${count}&regionCode=US`;
+        const videosRes = await fetch(videosUrl);
+        const videosData = await videosRes.json();
+        videos = videosData.items || [];
+      
