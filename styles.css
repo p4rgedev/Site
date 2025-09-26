@@ -10,6 +10,8 @@ header {
   justify-content: space-between;
   padding: 1rem;
   border-bottom: 1px solid white;
+  position: relative;
+  z-index: 10000; /* keep header above fixed player */
 }
 
 header h1 {
@@ -22,10 +24,12 @@ header .dev-credit {
   align-self: center;
 }
 
+/* Add padding-top to main to avoid content hidden behind fixed player */
 main {
   padding: 1rem;
   max-width: 900px;
   margin: 0 auto;
+  padding-top: 380px; /* height of fixed player + some spacing */
 }
 
 #login-section {
@@ -46,10 +50,7 @@ label {
   margin-bottom: 0.25rem;
 }
 
-input[type="text"],
-input[type="password"],
-input[type="search"],
-input[type="number"] {
+input[type="text"], input[type="password"], input[type="search"], input[type="number"] {
   width: 100%;
   padding: 0.5rem;
   margin-bottom: 1rem;
@@ -58,8 +59,7 @@ input[type="number"] {
   color: white;
 }
 
-input[type="submit"],
-button {
+input[type="submit"], button {
   padding: 0.6rem 1rem;
   background: black;
   border: 1px solid white;
@@ -68,8 +68,7 @@ button {
   border-radius: 3px;
 }
 
-input[type="submit"]:hover,
-button:hover {
+input[type="submit"]:hover, button:hover {
   background: white;
   color: black;
 }
@@ -127,7 +126,7 @@ button:hover {
 #games-list,
 #yt-results {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit,minmax(150px,1fr));
   gap: 1rem;
 }
 
@@ -166,12 +165,18 @@ button:hover {
   cursor: pointer;
 }
 
-iframe.youtube-embed {
+/* Fixed YouTube player at top */
+.youtube-embed {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
-  height: 480px;
+  height: 360px; /* Adjust height as needed */
   border: none;
-  border-radius: 5px;
-  margin-top: 1rem;
+  border-radius: 0;
+  z-index: 9999;
+  display: none;
+  background: black;
 }
 
 #contact-section p {
@@ -185,7 +190,10 @@ iframe.youtube-embed {
   header .dev-credit {
     font-size: 0.7rem;
   }
-  iframe.youtube-embed {
-    height: 280px;
+  .youtube-embed {
+    height: 240px;
+  }
+  main {
+    padding-top: 260px;
   }
 }
