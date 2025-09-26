@@ -51,10 +51,11 @@
   </section>
 
   <!-- APP SECTION -->
-  <section id="app-section" aria-live="polite" style="display:none;">
+  <section id="app-section" aria-live="polite" style="display:none; max-width: 900px; margin: auto;">
     <div class="tabs" role="tablist">
       <div class="tab active" role="tab" tabindex="0" id="tab-games" aria-controls="game-section" aria-selected="true">Games</div>
       <div class="tab" role="tab" tabindex="-1" id="tab-youtube" aria-controls="youtube-section" aria-selected="false">YouTube</div>
+      <div class="tab" role="tab" tabindex="-1" id="tab-chat" aria-controls="chat-section" aria-selected="false">Chat</div>
       <div class="tab" role="tab" tabindex="-1" id="tab-contact" aria-controls="contact-section" aria-selected="false">Contact</div>
     </div>
 
@@ -63,7 +64,7 @@
       <div id="games-list" role="list"></div>
     </section>
 
-    <section id="youtube-section" role="tabpanel" aria-labelledby="tab-youtube" tabindex="0">
+    <section id="youtube-section" role="tabpanel" aria-labelledby="tab-youtube" tabindex="0" style="display:none;">
       <label for="yt-channel-input">Channel Name (optional):</label>
       <input type="text" id="yt-channel-input" placeholder="Enter channel name to filter" aria-label="YouTube channel name" />
 
@@ -86,7 +87,16 @@
       <iframe id="yt-player" class="youtube-embed" src="" allowfullscreen style="display:none;"></iframe>
     </section>
 
-    <section id="contact-section" role="tabpanel" aria-labelledby="tab-contact" tabindex="0" style="padding: 1rem 0;">
+    <section id="chat-section" role="tabpanel" aria-labelledby="tab-chat" tabindex="0" style="display:none; padding:1rem; background:#111; color:white; border-radius:5px; margin-top:1rem;">
+      <h2>Global Chatroom</h2>
+      <div id="chat-messages" style="height:300px; overflow-y:auto; border:1px solid white; padding:0.5rem; margin-bottom:1rem; background:#222;"></div>
+      <form id="chat-form" style="display:flex; gap:0.5rem;">
+        <input type="text" id="chat-input" placeholder="Type your message..." autocomplete="off" required style="flex-grow:1; padding:0.5rem;" />
+        <button type="submit" style="padding:0.5rem 1rem;">Send</button>
+      </form>
+    </section>
+
+    <section id="contact-section" role="tabpanel" aria-labelledby="tab-contact" tabindex="0" style="padding: 1rem 0; display:none;">
       <p>Contact: <a href="mailto:p4rgedev-c@outlook.com" style="color: white; text-decoration: underline;">p4rgedev-c@outlook.com</a></p>
     </section>
   </section>
