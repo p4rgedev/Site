@@ -171,11 +171,48 @@ tabContact.addEventListener('click', () => activateTab('contact'));
     }
   });
 });
+// Fetch videos from a channel's uploads playlist and filter by keyword client-side
+async function fetchChannelVideosFiltered(channelName, keyword, maxResults = 5) {
+  const channelRes = await fetch(`https://www.googleapis.com/youtube/v3/search?key=${getNextApiKey()}&part=snippet&type=channel&q=${encodeURIComponent(channelName)}&maxResults=1`);
+  const channelData = await channelRes.json();
+  if (!channelData.items || channelData.items.length === 0) {
+    throw new Error('Channel not found');
+  }
+  const channelId = channelData.items[0].snippet.channelId;
 
-// YouTube search with channel & keyword logic
+  const channelDetailsRes = await fetch(`https://www.googleapis.com/youtube/v3/channels?key=${getNextApiKey()}&part=contentDetails&id=${channelId}`);
+  const channelDetailsData = await channelDetailsRes.json();
+  if (!channelDetailsData.items || channelDetailsData.items.length === 0) {
+    throw new Error('Channel details not found');
+  }
+  const uploadsPlaylistId = channelDetailsData.items[0].contentDetails.relatedPlaylists.uploads;
+
+  let videos = [];
+  let nextPageToken = '';
+  const pageSize = 50;
+  const lowerKeyword = keyword.toLowerCase();
+
+  while (videos.length < maxResults) {
+    const playlistRes = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?key=${getNextApiKey()}&part=snippet&playlistId=${uploadsPlaylistId}&maxResults=${pageSize}&pageToken=${nextPageToken}`);
+    const playlistData = await playlistRes.json();
+    if (!playlistData.items) break;
+
+    const filtered = playlistData.items.filter(item =>
+      item.snippet.title.toLowerCase().includes(lowerKeyword)
+    );
+
+    videos = videos.concat(filtered);
+
+    if (!playlistData.nextPageToken) break;
+    nextPageToken = playlistData.nextPageToken;
+  }
+
+  return videos.slice(0, maxResults);
+}
+
 ytSearchBtn.addEventListener('click', async () => {
   let channelName = ytChannelInput.value.trim();
-  let keywords = ytSearchInput.value.trim().toLowerCase();
+  let keywords = ytSearchInput.value.trim();
   let count = parseInt(ytCountInput.value);
   if (!count || count <= 0) count = 5;
 
@@ -187,41 +224,7 @@ ytSearchBtn.addEventListener('click', async () => {
     let videos = [];
 
     if (channelName) {
-      const channelRes = await fetch(`https://www.googleapis.com/youtube/v3/search?key=${getNextApiKey()}&part=snippet&type=channel&q=${encodeURIComponent(channelName)}&maxResults=1`);
-      const channelData = await channelRes.json();
-      if (!channelData.items || channelData.items.length === 0) {
-        ytResults.innerHTML = '<p>No channel found with that name.</p>';
-        return;
-      }
-      const channelId = channelData.items[0].snippet.channelId;
-
-      const channelDetailsRes = await fetch(`https://www.googleapis.com/youtube/v3/channels?key=${getNextApiKey()}&part=contentDetails&id=${channelId}`);
-      const channelDetailsData = await channelDetailsRes.json();
-      if (!channelDetailsData.items || channelDetailsData.items.length === 0) {
-        ytResults.innerHTML = '<p>Unable to fetch channel details.</p>';
-        return;
-      }
-      const uploadsPlaylistId = channelDetailsData.items[0].contentDetails.relatedPlaylists.uploads;
-
-      let nextPageToken = '';
-      const pageSize = 50;
-      let allVideos = [];
-      do {
-        const playlistRes = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?key=${getNextApiKey()}&part=snippet&playlistId=${uploadsPlaylistId}&maxResults=${pageSize}&pageToken=${nextPageToken}`);
-        const playlistData = await playlistRes.json();
-        if (!playlistData.items) break;
-        allVideos = allVideos.concat(playlistData.items);
-        nextPageToken = playlistData.nextPageToken || '';
-      } while (nextPageToken && allVideos.length < 200);
-
-      if (keywords) {
-        videos = allVideos.filter(item => item.snippet.title.toLowerCase().includes(keywords));
-      } else {
-        videos = allVideos;
-      }
-
-      videos = videos.slice(0, count);
-
+      videos = await fetchChannelVideosFiltered(channelName, keywords, count);
     } else if (keywords) {
       const videosUrl = `https://www.googleapis.com/youtube/v3/search?key=${getNextApiKey()}&part=snippet&q=${encodeURIComponent(keywords)}&maxResults=${count}&type=video`;
       const videosRes = await fetch(videosUrl);
@@ -274,13 +277,12 @@ ytSearchBtn.addEventListener('click', async () => {
 
       ytResults.appendChild(card);
     });
-
   } catch (error) {
     ytResults.innerHTML = '<p>Error loading results.</p>';
     console.error(error);
   }
 });
-
+// Embed video from pasted YouTube URL
 ytUrlBtn.addEventListener('click', () => {
   const url = ytUrlInput.value.trim();
   if (!url) return;
@@ -291,11 +293,12 @@ ytUrlBtn.addEventListener('click', () => {
   }
   ytPlayer.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
   ytPlayer.style.display = 'block';
-  ytPlayer.scrollIntoView({behavior: 'smooth'});
+  ytPlayer.scrollIntoView({ behavior: 'smooth' });
 });
 
+// Helper function to extract YouTube video ID from URL
 function extractVideoID(url) {
   const regex = /(?:youtube\.com\/.*v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
   const match = url.match(regex);
   return match ? match[1] : null;
-}
+};
