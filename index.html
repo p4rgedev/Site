@@ -1,0 +1,218 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Wall Puncher Hub</title>
+<style>
+  body {
+    margin: 0; padding: 0;
+    background: black;
+    color: white;
+    font-family: Arial, sans-serif;
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    padding: 1rem;
+    border-bottom: 1px solid white;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+  }
+  header .dev-credit {
+    font-size: 0.9rem;
+    align-self: center;
+  }
+  main {
+    padding: 1rem;
+  }
+  #login-section {
+    max-width: 320px;
+    margin: 3rem auto;
+    border: 1px solid white;
+    padding: 2rem;
+    border-radius: 5px;
+  }
+  #login-section h2 {
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+  label {
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+  input[type="text"], input[type="password"] {
+    width: 100%;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+    background: black;
+    border: 1px solid white;
+    color: white;
+  }
+  input[type="submit"] {
+    width: 100%;
+    padding: 0.6rem;
+    background: black;
+    border: 1px solid white;
+    color: white;
+    cursor: pointer;
+  }
+  input[type="submit"]:hover {
+    background: white;
+    color: black;
+  }
+  #game-section {
+    display: none;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  #search-input {
+    width: 100%;
+    max-width: 400px;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+    background: black;
+    border: 1px solid white;
+    color: white;
+    font-size: 1rem;
+  }
+  #games-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit,minmax(150px,1fr));
+    gap: 1rem;
+  }
+  .game-card {
+    background: black;
+    border: 1px solid white;
+    border-radius: 5px;
+    text-align: center;
+    padding: 0.5rem;
+    user-select: none;
+  }
+  .game-card:hover {
+    background: white;
+    color: black;
+  }
+  .game-card img {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid white;
+    margin-bottom: 0.5rem;
+    border-radius: 3px;
+  }
+  .game-card a {
+    color: inherit;
+    text-decoration: none;
+    font-weight: bold;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  @media (max-width: 400px) {
+    header h1 {
+      font-size: 1.2rem;
+    }
+    header .dev-credit {
+      font-size: 0.7rem;
+    }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Wall Puncher Hub</h1>
+  <div class="dev-credit">developed by p4rge_</div>
+</header>
+
+<main>
+  <section id="login-section">
+    <h2>Login</h2>
+    <form id="login-form">
+      <label for="username">Username</label>
+      <input type="text" id="username" autocomplete="username" required />
+      <label for="password">Password</label>
+      <input type="password" id="password" autocomplete="current-password" required />
+      <input type="submit" value="Enter" />
+    </form>
+    <p id="login-error" style="color: #f00; display:none; margin-top:1rem; text-align:center;">Invalid username or password.</p>
+  </section>
+
+  <section id="game-section" aria-label="Game search and list">
+    <input type="search" id="search-input" placeholder="Search games (A-Z)" aria-label="Search games" />
+    <div id="games-list" role="list"></div>
+  </section>
+</main>
+
+<script>
+  const USERNAME = 'Mark';
+  const PASSWORD = 'Hamlin';
+
+  // Update this array with your games
+  const games = [
+    { name: "Slope", cover: "slope-plus/cover.png", code: "https://p4rgedev.github.io/slope-plus/" }
+  ];
+
+  const loginForm = document.getElementById('login-form');
+  const loginSection = document.getElementById('login-section');
+  const gameSection = document.getElementById('game-section');
+  const loginError = document.getElementById('login-error');
+  const searchInput = document.getElementById('search-input');
+  const gamesList = document.getElementById('games-list');
+
+  loginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    if (username === USERNAME && password === PASSWORD) {
+      loginSection.style.display = 'none';
+      gameSection.style.display = 'block';
+      renderGames(games);
+      loginError.style.display = 'none';
+    } else {
+      loginError.style.display = 'block';
+    }
+  });
+
+  searchInput.addEventListener('input', () => {
+    const query = searchInput.value.toLowerCase();
+    const filtered = games.filter(game => game.name.toLowerCase().includes(query));
+    renderGames(filtered);
+  });
+
+  function renderGames(list) {
+    gamesList.innerHTML = '';
+    if (list.length === 0) {
+      gamesList.innerHTML = '<p>No games found.</p>';
+      return;
+    }
+    list.sort((a,b) => a.name.localeCompare(b.name));
+    for (const game of list) {
+      const card = document.createElement('div');
+      card.className = 'game-card';
+
+      const link = document.createElement('a');
+      link.href = game.code;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.title = `Play ${game.name}`;
+
+      const img = document.createElement('img');
+      img.src = game.cover;
+      img.alt = `${game.name} cover`;
+
+      const name = document.createElement('span');
+      name.textContent = game.name;
+
+      link.appendChild(img);
+      link.appendChild(name);
+      card.appendChild(link);
+      gamesList.appendChild(card);
+    }
+  }
+</script>
+</body>
+</html>
