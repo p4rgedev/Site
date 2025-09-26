@@ -45,7 +45,7 @@
     display: block;
     margin-bottom: 0.25rem;
   }
-  input[type="text"], input[type="password"] {
+  input[type="text"], input[type="password"], input[type="search"] {
     width: 100%;
     padding: 0.5rem;
     margin-bottom: 1rem;
@@ -53,15 +53,15 @@
     border: 1px solid white;
     color: white;
   }
-  input[type="submit"] {
-    width: 100%;
-    padding: 0.6rem;
+  input[type="submit"], button {
+    padding: 0.6rem 1rem;
     background: black;
     border: 1px solid white;
     color: white;
     cursor: pointer;
+    border-radius: 3px;
   }
-  input[type="submit"]:hover {
+  input[type="submit"]:hover, button:hover {
     background: white;
     color: black;
   }
@@ -96,22 +96,16 @@
   #game-section.active, #youtube-section.active {
     display: block;
   }
-  #search-input {
-    width: 100%;
+  #search-input, #yt-url-input {
     max-width: 400px;
-    padding: 0.5rem;
     margin-bottom: 1rem;
-    background: black;
-    border: 1px solid white;
-    color: white;
-    font-size: 1rem;
   }
-  #games-list {
+  #games-list, #yt-results {
     display: grid;
     grid-template-columns: repeat(auto-fit,minmax(150px,1fr));
     gap: 1rem;
   }
-  .game-card {
+  .game-card, .yt-video-card {
     background: black;
     border: 1px solid white;
     border-radius: 5px;
@@ -119,31 +113,31 @@
     padding: 0.5rem;
     user-select: none;
   }
-  .game-card:hover {
+  .game-card:hover, .yt-video-card:hover {
     background: white;
     color: black;
   }
-  .game-card img {
+  .game-card img, .yt-video-card img {
     max-width: 100%;
     height: auto;
     border: 1px solid white;
     margin-bottom: 0.5rem;
     border-radius: 3px;
   }
-  .game-card a {
-    color: inherit;
-    text-decoration: none;
+  .game-card a, .yt-video-card div {
     font-weight: bold;
     display: block;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    cursor: pointer;
   }
   iframe.youtube-embed {
     width: 100%;
     height: 480px;
     border: none;
     border-radius: 5px;
+    margin-top: 1rem;
   }
   @media (max-width: 400px) {
     header h1 {
@@ -189,8 +183,18 @@
     </section>
 
     <section id="youtube-section" role="tabpanel" aria-labelledby="tab-youtube" tabindex="0">
-      <iframe class="youtube-embed" src="https://www.youtube.com/embed/dQw4w9WgXcQ" 
-        title="YouTube video player" allowfullscreen></iframe>
+      <label for="yt-search-input">Search YouTube Videos:</label>
+      <input type="search" id="yt-search-input" placeholder="Enter keywords" aria-label="YouTube video search" />
+      <button id="yt-search-btn">Search</button>
+      <div id="yt-results" role="list"></div>
+
+      <hr style="margin:1rem 0; border-color: white;" />
+
+      <label for="yt-url-input">Or paste YouTube URL to embed:</label>
+      <input type="text" id="yt-url-input" placeholder="https://www.youtube.com/watch?v=VIDEO_ID" aria-label="YouTube video URL" />
+      <button id="yt-url-btn">Embed Video</button>
+
+      <iframe id="yt-player" class="youtube-embed" src="" allowfullscreen style="display:none;"></iframe>
     </section>
   </section>
 </main>
@@ -207,6 +211,7 @@
   const loginSection = document.getElementById('login-section');
   const appSection = document.getElementById('app-section');
   const loginError = document.getElementById('login-error');
+
   const searchInput = document.getElementById('search-input');
   const gamesList = document.getElementById('games-list');
 
@@ -214,6 +219,16 @@
   const tabYoutube = document.getElementById('tab-youtube');
   const gameSection = document.getElementById('game-section');
   const youtubeSection = document.getElementById('youtube-section');
+
+  const ytSearchInput = document.getElementById('yt-search-input');
+  const ytSearchBtn = document.getElementById('yt-search-btn');
+  const ytResults = document.getElementById('yt-results');
+
+  const ytUrlInput = document.getElementById('yt-url-input');
+  const ytUrlBtn = document.getElementById('yt-url-btn');
+  const ytPlayer = document.getElementById('yt-player');
+
+  const YOUTUBE_API_KEY = 'AIzaSyDstZPwfimboVJWSWW-txfej9gPUWR9PiE'; // Your API key
 
   loginForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -293,7 +308,6 @@
   tabGames.addEventListener('click', () => activateTab('games'));
   tabYoutube.addEventListener('click', () => activateTab('youtube'));
 
-  // Optional: keyboard navigation for accessibility
   [tabGames, tabYoutube].forEach(tab => {
     tab.addEventListener('keydown', e => {
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
@@ -308,6 +322,82 @@
       }
     });
   });
+
+  // YouTube search
+  ytSearchBtn.addEventListener('click', () => {
+    const query = ytSearchInput.value.trim();
+    if (!query) return;
+    ytResults.innerHTML = '<p>Loading...</p>';
+    ytPlayer.style.display = 'none';
+    ytPlayer.src = '';
+    fetch(`https://www.googleapis.com/youtube/v3/search?key=${YOUTUBE_API_KEY}&part=snippet&type=video&maxResults=8&q=${encodeURIComponent(query)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (!data.items) {
+          ytResults.innerHTML = '<p>No results found.</p>';
+          return;
+        }
+        ytResults.innerHTML = '';
+        data.items.forEach(item => {
+          const videoId = item.id.videoId;
+          const title = item.snippet.title;
+          const thumbnail = item.snippet.thumbnails.medium.url;
+
+          const card = document.createElement('div');
+          card.className = 'yt-video-card';
+
+          const thumbImg = document.createElement('img');
+          thumbImg.src = thumbnail;
+          thumbImg.alt = title;
+
+          const titleDiv = document.createElement('div');
+          titleDiv.textContent = title;
+
+          card.appendChild(thumbImg);
+          card.appendChild(titleDiv);
+          card.tabIndex = 0;
+
+          card.addEventListener('click', () => {
+            ytPlayer.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+            ytPlayer.style.display = 'block';
+            ytPlayer.scrollIntoView({behavior: 'smooth'});
+          });
+
+          card.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              card.click();
+            }
+          });
+
+          ytResults.appendChild(card);
+        });
+      })
+      .catch(() => {
+        ytResults.innerHTML = '<p>Error loading results.</p>';
+      });
+  });
+
+  // Embed from pasted URL
+  ytUrlBtn.addEventListener('click', () => {
+    const url = ytUrlInput.value.trim();
+    if (!url) return;
+    const videoId = extractVideoID(url);
+    if (!videoId) {
+      alert('Invalid YouTube URL.');
+      return;
+    }
+    ytPlayer.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+    ytPlayer.style.display = 'block';
+    ytPlayer.scrollIntoView({behavior: 'smooth'});
+  });
+
+  // Helper to extract video ID from YouTube URL
+  function extractVideoID(url) {
+    const regex = /(?:youtube\.com\/.*v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
+  }
 </script>
 </body>
-</html
+</html>
