@@ -1,18 +1,20 @@
 const firebaseConfig = {
   apiKey: "AIzaSyBlODXx-DUc854md33vCUQmfFmgbVVr2Z8",
-  authDomain: "wallpuncherhub.firebaseapp.com",
-  projectId: "wallpuncherhub",
-  storageBucket: "wallpuncherhub.firebasestorage.app",
-  messagingSenderId: "290890530719",
-  appId: "1:290890530719:web:71757bb1bac1b421cdc7aa"  
+  authDomain: "wallpuncherhub.firebaseapp.com",
+  projectId: "wallpuncherhub",
+  storageBucket: "wallpuncherhub.firebasestorage.app",
+  messagingSenderId: "290890530719",
+  appId: "1:290890530719:web:71757bb1bac1b421cdc7aa"
 };
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+
 const games = [
   { name: "slope", cover: "games/slope-plus/cover.png", code: "https://p4rgedev.github.io/slope-plus/" }
 ];
 
+// Hashing function for passwords (SHA-256)
 async function hashPassword(password) {
   const encoder = new TextEncoder();
   const data = encoder.encode(password);
@@ -58,16 +60,41 @@ function getNextApiKey() {
   return key;
 }
 
-loginForm.addEventListener('submit', (e) => {
+// Login with Firestore username/password check
+loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   loginError.style.display = 'none';
+
   const username = document.getElementById('username').value.trim();
   const password = document.getElementById('password').value;
-  if (username === USERNAME && password === PASSWORD) {
-    loginSection.style.display = 'none';
-    appSection.style.display = 'block';
-    renderGames(games);
-  } else {
+
+  if (!username || !password) {
+    loginError.style.display = 'block';
+    return;
+  }
+
+  try {
+    const passwordHash = await hashPassword(password);
+    const usersRef = db.collection('users');
+    const querySnapshot = await usersRef.where('username', '==', username).get();
+
+    if (querySnapshot.empty) {
+      loginError.style.display = 'block';
+      return;
+    }
+
+    const userDoc = querySnapshot.docs[0];
+    const userData = userDoc.data();
+
+    if (userData.passwordHash === passwordHash) {
+      loginSection.style.display = 'none';
+      appSection.style.display = 'block';
+      renderGames(games);
+    } else {
+      loginError.style.display = 'block';
+    }
+  } catch (error) {
+    console.error(error);
     loginError.style.display = 'block';
   }
 });
@@ -187,7 +214,8 @@ tabContact.addEventListener('click', () => activateTab('contact'));
     }
   });
 });
-// Fetch videos from a channel's uploads playlist and filter by keyword client-side
+
+// Fetch videos from YouTube as before (no changes here)
 async function fetchChannelVideosFiltered(channelName, keyword, maxResults = 5) {
   const channelRes = await fetch(`https://www.googleapis.com/youtube/v3/search?key=${getNextApiKey()}&part=snippet&type=channel&q=${encodeURIComponent(channelName)}&maxResults=1`);
   const channelData = await channelRes.json();
@@ -298,6 +326,7 @@ ytSearchBtn.addEventListener('click', async () => {
     console.error(error);
   }
 });
+
 // Embed video from pasted YouTube URL
 ytUrlBtn.addEventListener('click', () => {
   const url = ytUrlInput.value.trim();
@@ -317,4 +346,4 @@ function extractVideoID(url) {
   const regex = /(?:youtube\.com\/.*v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
   const match = url.match(regex);
   return match ? match[1] : null;
-};
+}
