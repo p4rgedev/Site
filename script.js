@@ -13,6 +13,14 @@ const games = [
   { name: "slope", cover: "games/slope-plus/cover.png", code: "https://p4rgedev.github.io/slope-plus/" }
 ];
 
+async function hashPassword(password) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 const loginForm = document.getElementById('login-form');
 const loginSection = document.getElementById('login-section');
 const appSection = document.getElementById('app-section');
