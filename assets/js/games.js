@@ -1,0 +1,1 @@
+// Games page JS placeholder

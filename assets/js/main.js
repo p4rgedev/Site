@@ -1,0 +1,1 @@
+// Common JS functions placeholder
