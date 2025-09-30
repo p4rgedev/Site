@@ -38,9 +38,11 @@ document.addEventListener('DOMContentLoaded', () => {
 						localStorage.setItem('user',username);
 						location.href='games.html';
 				}catch(err){console.error(err);alert("Error logging in")}
-		});
+			});
+		}
 
-		registerForm?.addEventListener('submit',async e=>{
+		if (registerForm) {
+			registerForm.addEventListener('submit',async e=>{
 				e.preventDefault();
 				const username=document.getElementById('reg-username').value.trim();
 				const passwordHash=hashPassword(document.getElementById('reg-password').value);
@@ -52,5 +54,6 @@ document.addEventListener('DOMContentLoaded', () => {
 						localStorage.setItem('user',username);
 						location.href='games.html';
 				}catch(err){console.error(err);alert("Error registering user")}
-		});
+			});
+		}
 });
