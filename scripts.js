@@ -131,56 +131,176 @@ function loadGame(gameName) {
   window.location.href = `./games/${gameName}/code/index.html`;
 }
 
-document.getElementById('search-btn').addEventListener('click', async () => {
+// YouTube multi-step search
+
+const youtubeResultsDiv = document.getElementById('youtube-results');
+const channelQueryInput = document.getElementById('channel-query');
+const keywordQueryInput = document.getElementById('keyword-query');
+const searchBtn = document.getElementById('search-btn');
+
+let selectedChannelId = null;
+
+searchBtn.addEventListener('click', async () => {
   if (!currentUser) {
     alert('Please login first.');
     return;
   }
-  const query = document.getElementById('search-query').value.trim();
-  const count = parseInt(document.getElementById('videos-count').value);
-  if (!query) {
-    alert('Enter a search query');
+  youtubeResultsDiv.innerHTML = '';
+  selectedChannelId = null;
+
+  const channelQuery = channelQueryInput.value.trim();
+  const keywordQuery = keywordQueryInput.value.trim();
+
+  if (!channelQuery && !keywordQuery) {
+    alert('Enter a channel or keyword to search');
     return;
   }
+
   try {
-    // Pick first active API key (no usage tracking)
-    const keysSnap = await db.collection('apiKeys').where('active', '==', true).limit(1).get();
-    if (keysSnap.empty) throw new Error('No active YouTube API keys available');
-
-    const keyDoc = keysSnap.docs[0];
-    const keyData = keyDoc.data();
-
-    // Log search query in user's yt-searches array
+    // Log both queries if provided
     const userRef = db.collection('users').doc(currentUser);
-    await userRef.update({
-      'yt-searches': firebase.firestore.FieldValue.arrayUnion(query)
-    });
+    if (channelQuery) {
+      await userRef.update({
+        'yt-searches': firebase.firestore.FieldValue.arrayUnion(channelQuery)
+      });
+    }
+    if (keywordQuery) {
+      await userRef.update({
+        'yt-searches': firebase.firestore.FieldValue.arrayUnion(keywordQuery)
+      });
+    }
 
-    // Fetch YouTube videos
-    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=${count}&q=${encodeURIComponent(query)}&key=${keyData.key}`;
-    const response = await fetch(url);
-    const data = await response.json();
-    if (data.error) throw new Error(data.error.message);
+    const apiKey = await getActiveApiKey();
 
-    const embedDiv = document.getElementById('embed-results');
-    embedDiv.innerHTML = '';
+    if (channelQuery) {
+      // Search channels first
+      let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&maxResults=10&q=${encodeURIComponent(channelQuery)}&key=${apiKey}`;
+      let response = await fetch(url);
+      let data = await response.json();
 
-    data.items.forEach(item => {
-      const videoId = item.id.videoId;
-      const iframe = document.createElement('iframe');
-      iframe.width = "100%";
-      iframe.height = "315";
-      iframe.src = `https://www.youtube.com/embed/${videoId}`;
-      iframe.title = item.snippet.title;
-      iframe.frameBorder = "0";
-      iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
-      iframe.allowFullscreen = true;
-      iframe.style.marginBottom = '1em';
-      embedDiv.appendChild(iframe);
-    });
+      if (data.error) throw new Error(data.error.message);
 
-    showTab('embed');
+      if (data.items.length === 0) {
+        // No channels found, fallback to video search with keywordQuery or channelQuery if no keyword
+        await searchVideos(keywordQuery || channelQuery, apiKey);
+      } else {
+        // Show channel cards
+        data.items.forEach(channel => {
+          const channelId = channel.snippet.channelId;
+          const title = channel.snippet.title;
+          const thumb = channel.snippet.thumbnails.default.url;
+
+          const card = document.createElement('div');
+          card.style.cursor = 'pointer';
+          card.style.display = 'flex';
+          card.style.alignItems = 'center';
+          card.style.marginBottom = '10px';
+          card.style.border = '1px solid #555';
+          card.style.padding = '5px';
+          card.style.borderRadius = '5px';
+
+          const img = document.createElement('img');
+          img.src = thumb;
+          img.alt = title;
+          img.style.marginRight = '10px';
+
+          const text = document.createElement('div');
+          text.textContent = title;
+
+          card.appendChild(img);
+          card.appendChild(text);
+
+          card.onclick = () => {
+            selectedChannelId = channelId;
+            // Search videos in this channel with keywordQuery or prompt if empty
+            if (keywordQuery) {
+              searchVideos(keywordQuery, apiKey, selectedChannelId);
+            } else {
+              const kw = prompt(`Enter keyword to search videos in channel "${title}"`, '');
+              if (kw !== null && kw.trim() !== '') {
+                searchVideos(kw.trim(), apiKey, selectedChannelId);
+              }
+            }
+          };
+
+          youtubeResultsDiv.appendChild(card);
+        });
+      }
+    } else if (keywordQuery) {
+      // No channel query, search videos directly
+      await searchVideos(keywordQuery, apiKey);
+    }
   } catch (e) {
     alert('Error: ' + e.message);
   }
 });
+
+async function searchVideos(keyword, apiKey, channelId = null) {
+  youtubeResultsDiv.innerHTML = '';
+
+  let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&q=${encodeURIComponent(keyword)}&key=${apiKey}`;
+  if (channelId) url += `&channelId=${channelId}`;
+
+  const response = await fetch(url);
+  const data = await response.json();
+  if (data.error) throw new Error(data.error.message);
+
+  if (data.items.length === 0) {
+    youtubeResultsDiv.textContent = 'No videos found.';
+    return;
+  }
+
+  data.items.forEach(video => {
+    const videoId = video.id.videoId;
+    const title = video.snippet.title;
+    const thumb = video.snippet.thumbnails.default.url;
+
+    const card = document.createElement('div');
+    card.style.cursor = 'pointer';
+    card.style.display = 'flex';
+    card.style.alignItems = 'center';
+    card.style.marginBottom = '10px';
+    card.style.border = '1px solid #555';
+    card.style.padding = '5px';
+    card.style.borderRadius = '5px';
+
+    const img = document.createElement('img');
+    img.src = thumb;
+    img.alt = title;
+    img.style.marginRight = '10px';
+
+    const text = document.createElement('div');
+    text.textContent = title;
+
+    card.appendChild(img);
+    card.appendChild(text);
+
+    card.onclick = () => {
+      showEmbeddedVideo(videoId, title);
+      showTab('embed');
+    };
+
+    youtubeResultsDiv.appendChild(card);
+  });
+}
+
+function showEmbeddedVideo(videoId, title) {
+  const embedDiv = document.getElementById('embed-results');
+  embedDiv.innerHTML = '';
+
+  const iframe = document.createElement('iframe');
+  iframe.width = "100%";
+  iframe.height = "315";
+  iframe.src = `https://www.youtube.com/embed/${videoId}`;
+  iframe.title = title;
+  iframe.frameBorder = "0";
+  iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+  iframe.allowFullscreen = true;
+  embedDiv.appendChild(iframe);
+}
+
+async function getActiveApiKey() {
+  const keysSnap = await db.collection('apiKeys').where('active', '==', true).orderBy('usage', 'asc').limit(1).get();
+  if (keysSnap.empty) throw new Error('No active YouTube API keys available');
+  return keysSnap.docs[0].data().key;
+}
