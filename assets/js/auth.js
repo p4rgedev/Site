@@ -5,10 +5,10 @@ document.addEventListener('DOMContentLoaded', () => {
 		const authTitle = document.getElementById('auth-title');
 
 		function hashPassword(password) {
-				return btoa(password); // simple hash for demonstration
+				return btoa(password); // simple base64 hash
 		}
 
-		// Toggle login/register
+		// Toggle between login and register
 		toggleLink.addEventListener('click', () => {
 				if (loginForm.style.display === 'none') {
 						loginForm.style.display = 'block';
