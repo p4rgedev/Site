@@ -1,4 +1,3 @@
-// Firebase config and initialization
 const firebaseConfig = {
   apiKey: "AIzaSyBlODXx-DUc854md33vCUQmfFmgbVVr2Z8",
   authDomain: "wallpuncherhub.firebaseapp.com",
@@ -11,10 +10,8 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// Global currentUser (username string)
 let currentUser = null;
 
-// Hash password using SHA-256
 async function hashPassword(password) {
   const encoder = new TextEncoder();
   const data = encoder.encode(password);
@@ -23,7 +20,6 @@ async function hashPassword(password) {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Register user
 async function register(username, password) {
   const userDoc = db.collection('users').doc(username);
   const doc = await userDoc.get();
@@ -42,7 +38,6 @@ async function register(username, password) {
   });
 }
 
-// Login user
 async function login(username, password) {
   const userDoc = db.collection('users').doc(username);
   const doc = await userDoc.get();
@@ -54,7 +49,6 @@ async function login(username, password) {
   return data;
 }
 
-// UI elements
 const loginSection = document.getElementById('login-section');
 const mainSection = document.getElementById('main-section');
 const loginMessage = document.getElementById('login-message');
@@ -72,7 +66,6 @@ const tabs = {
   embed: document.getElementById('embed-tab')
 };
 
-// Login button handler
 btnLogin.addEventListener('click', async () => {
   loginMessage.textContent = '';
   const username = document.getElementById('username').value.trim();
@@ -90,7 +83,6 @@ btnLogin.addEventListener('click', async () => {
   }
 });
 
-// Register button handler
 btnRegister.addEventListener('click', async () => {
   loginMessage.textContent = '';
   const username = document.getElementById('username').value.trim();
@@ -107,30 +99,26 @@ btnRegister.addEventListener('click', async () => {
   }
 });
 
-// Logout handler
 btnLogout.addEventListener('click', () => {
   currentUser = null;
   mainSection.style.display = 'none';
   loginSection.style.display = 'block';
   clearInputs();
-  showTab('games'); // Reset to games tab
+  showTab('games');
 });
 
-// Show main UI after login
 function showMain() {
   loginSection.style.display = 'none';
   mainSection.style.display = 'block';
   checkUserUsage();
 }
 
-// Clear input fields
 function clearInputs() {
   document.getElementById('username').value = '';
   document.getElementById('password').value = '';
   loginMessage.textContent = '';
 }
 
-// Tab switching logic
 tabButtons.games.addEventListener('click', () => showTab('games'));
 tabButtons.youtube.addEventListener('click', () => showTab('youtube'));
 tabButtons.embed.addEventListener('click', () => showTab('embed'));
@@ -151,12 +139,10 @@ function showTab(tab) {
   tabButtons.embed.classList.toggle('active', tab === 'embed');
 }
 
-// Load a game by navigating to its index.html
 function loadGame(gameName) {
   window.location.href = `./games/${gameName}/code/index.html`;
 }
 
-// Check user's usage and hide YouTube and Embed tabs if needed
 async function checkUserUsage() {
   if (!currentUser) return;
   const userRef = db.collection('users').doc(currentUser);
@@ -173,7 +159,6 @@ async function checkUserUsage() {
   }
 }
 
-// Usage reset logic every 5 minutes using currentUser's reset field
 async function usageResetCheck() {
   if (!currentUser) return;
   const userRef = db.collection('users').doc(currentUser);
@@ -188,7 +173,6 @@ async function usageResetCheck() {
   today5PM.setHours(17, 0, 0, 0);
 
   if (now >= today5PM && lastReset < today5PM) {
-    // Reset current user's usage and update reset timestamps
     await userRef.update({
       usage: 0,
       reset: {
@@ -197,7 +181,6 @@ async function usageResetCheck() {
       }
     });
 
-    // Reset all apiKeys usage and set active to true
     const keysSnapshot = await db.collection('apiKeys').get();
     const batch = db.batch();
     keysSnapshot.forEach(doc => {
@@ -208,7 +191,6 @@ async function usageResetCheck() {
     console.log('Usage reset done at 5 PM');
     checkUserUsage();
   } else {
-    // Update reset current-time only
     await userRef.set({
       reset: {
         'current-time': firebase.firestore.Timestamp.now(),
@@ -218,10 +200,8 @@ async function usageResetCheck() {
   }
 }
 
-// Call usage reset every 5 minutes
 setInterval(usageResetCheck, 5 * 60 * 1000);
 
-// YouTube search and usage tracking with embedded results
 document.getElementById('search-btn').addEventListener('click', async () => {
   if (!currentUser) {
     alert('Please login first.');
@@ -234,8 +214,7 @@ document.getElementById('search-btn').addEventListener('click', async () => {
     return;
   }
   try {
-    // Pick lowest usage active api key
-    const keysSnap = await db.collection('apiKeys').where('active', '==', true).orderBy('usage').limit(1).get();
+    const keysSnap = await db.collection('apiKeys').where('active', '==', true).orderBy('usage', 'asc').limit(1).get();
     if (keysSnap.empty) throw new Error('No active YouTube API keys available');
 
     const keyDoc = keysSnap.docs[0];
@@ -249,7 +228,6 @@ document.getElementById('search-btn').addEventListener('click', async () => {
       newKeyUsage = 2000;
     }
 
-    // Update user usage
     const userRef = db.collection('users').doc(currentUser);
     const userDoc = await userRef.get();
     const userData = userDoc.data();
@@ -270,17 +248,14 @@ document.getElementById('search-btn').addEventListener('click', async () => {
       tabButtons.embed.style.display = 'inline-block';
     }
 
-    // Fetch YouTube videos
     const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=${count}&q=${encodeURIComponent(query)}&key=${keyData.key}`;
     const response = await fetch(url);
     const data = await response.json();
     if (data.error) throw new Error(data.error.message);
 
-    // Clear previous embeds
     const embedDiv = document.getElementById('embed-results');
     embedDiv.innerHTML = '';
 
-    // Embed videos
     data.items.forEach(item => {
       const videoId = item.id.videoId;
       const iframe = document.createElement('iframe');
@@ -295,7 +270,6 @@ document.getElementById('search-btn').addEventListener('click', async () => {
       embedDiv.appendChild(iframe);
     });
 
-    // Switch to embed tab automatically
     showTab('embed');
   } catch (e) {
     alert('Error: ' + e.message);
