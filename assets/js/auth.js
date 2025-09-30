@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		const authTitle = document.getElementById('auth-title');
 
 		function hashPassword(password) {
-				return btoa(password);
+				return btoa(password); // simple hash for demonstration
 		}
 
 		// Toggle login/register
@@ -29,16 +29,21 @@ document.addEventListener('DOMContentLoaded', () => {
 				const username = document.getElementById('username').value.trim();
 				const passwordHash = hashPassword(document.getElementById('password').value);
 
-				const docRef = db.collection('users').doc(username);
-				const doc = await docRef.get();
-				if (!doc.exists) return alert("User not found");
+				try {
+						const docRef = db.collection('users').doc(username);
+						const doc = await docRef.get();
+						if (!doc.exists) return alert("User not found");
 
-				const data = doc.data();
-				if (data.banned) return alert("You are banned");
-				if (data.passwordHash !== passwordHash) return alert("Wrong password");
+						const data = doc.data();
+						if (data.banned) return alert("You are banned");
+						if (data.passwordHash !== passwordHash) return alert("Wrong password");
 
-				localStorage.setItem('user', username);
-				location.href = 'games.html';
+						localStorage.setItem('user', username);
+						location.href = 'games.html';
+				} catch (err) {
+						console.error(err);
+						alert("Error logging in");
+				}
 		});
 
 		// Register + auto-login
@@ -47,19 +52,24 @@ document.addEventListener('DOMContentLoaded', () => {
 				const username = document.getElementById('reg-username').value.trim();
 				const passwordHash = hashPassword(document.getElementById('reg-password').value);
 
-				const docRef = db.collection('users').doc(username);
-				const doc = await docRef.get();
-				if (doc.exists) return alert("Username taken");
+				try {
+						const docRef = db.collection('users').doc(username);
+						const doc = await docRef.get();
+						if (doc.exists) return alert("Username taken");
 
-				await docRef.set({
-						username,
-						passwordHash,
-						banned: false,
-						usage: 0,
-						'yt-searches': []
-				});
+						await docRef.set({
+								username,
+								passwordHash,
+								banned: false,
+								usage: 0,
+								'yt-searches': []
+						});
 
-				localStorage.setItem('user', username);
-				location.href = 'games.html';
+						localStorage.setItem('user', username);
+						location.href = 'games.html';
+				} catch (err) {
+						console.error(err);
+						alert("Error registering user");
+				}
 		});
 });
