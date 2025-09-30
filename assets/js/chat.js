@@ -1,1 +1,0 @@
-// Chat page JS placeholder
