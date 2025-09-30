@@ -1,31 +1,16 @@
-const gamesGrid = document.getElementById('games-grid');
-const gamesJSON = '/games/games.json';
-
-async function loadGames() {
-		try {
-				const response = await fetch(gamesJSON);
-				if (!response.ok) throw new Error('Failed to load games.json');
-
-				const games = await response.json();
-				gamesGrid.innerHTML = '';
-
-				for (const game of games) {
-						const div = document.createElement('div');
-						div.className = 'game-card';
-						div.innerHTML = `
-						<img src="/games/${game.name}/cover.png" alt="${game.name}" width="150">
-						<p>${game.name}</p>
-						`;
-						div.addEventListener('click', () => {
-								window.open(`/games/${game.name}/code/index.html`, '_blank');
-						});
-						gamesGrid.appendChild(div);
-				}
-		} catch (err) {
-				gamesGrid.innerHTML = '<p>No games found or failed to load.</p>';
-				console.error(err);
-		}
-}
-
-// Run on page load
-loadGames();
+document.addEventListener('DOMContentLoaded',()=>{
+		const container=document.getElementById('games-container');
+		fetch('games.json')
+		.then(r=>r.json())
+		.then(games=>{
+				games.forEach(game=>{
+						const card=document.createElement('div');
+						card.style.border='1px solid white';
+						card.style.padding='0.5rem';
+						card.style.cursor='pointer';
+						card.innerHTML=`<img src="${game.folder.replace('/code','')}/cover.png" style="width:100%"><p style="text-align:center;">${game.name}</p>`;
+						card.addEventListener('click',()=>window.open(game.folder+'/index.html','_blank'));
+						container.appendChild(card);
+				});
+		}).catch(err=>{console.error("Failed to load games.json",err)});
+});

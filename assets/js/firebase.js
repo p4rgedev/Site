@@ -1,4 +1,3 @@
-// Firebase configuration
 const firebaseConfig = {
 		apiKey: "AIzaSyBlODXx-DUc854md33vCUQmfFmgbVVr2Z8",
 		authDomain: "wallpuncherhub.firebaseapp.com",
@@ -9,8 +8,5 @@ const firebaseConfig = {
 		measurementId: "G-GJNRHGBBLX"
 };
 
-// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
-
-// Initialize Firestore (Firestore-only, no Realtime Database)
 const db = firebase.firestore();
