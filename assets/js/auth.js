@@ -6,7 +6,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 		function hashPassword(p){return btoa(p)}
 
-		toggleLink.addEventListener('click',()=>{
+		// Check if toggleLink exists before adding event listener
+		if (toggleLink) {
+			toggleLink.addEventListener('click',()=>{
 				if(loginForm.style.display==='none'){
 						loginForm.style.display='block';
 						registerForm.style.display='none';
@@ -18,9 +20,11 @@ document.addEventListener('DOMContentLoaded', () => {
 						authTitle.textContent='Register';
 						toggleLink.textContent="Already have an account? Login here";
 				}
-		});
+			});
+		}
 
-		loginForm?.addEventListener('submit',async e=>{
+		if (loginForm) {
+			loginForm.addEventListener('submit',async e=>{
 				e.preventDefault();
 				const username=document.getElementById('username').value.trim();
 				const passwordHash=hashPassword(document.getElementById('password').value);

@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded',()=>{
 		const container=document.getElementById('games-container');
-		fetch('games.json')
+		fetch('games/games.json')
 		.then(r=>r.json())
 		.then(games=>{
 				games.forEach(game=>{
