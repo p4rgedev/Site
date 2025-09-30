@@ -45,15 +45,18 @@
 
   <section id="youtube-tab" style="display:none;">
     <h2>YouTube Search</h2>
-    <input type="text" id="search-query" placeholder="Search YouTube" />
-    <select id="videos-count">
-      <option value="1">1 video</option>
-      <option value="5" selected>5 videos</option>
-      <option value="10">10 videos</option>
-      <option value="15">15 videos</option>
-      <option value="25">25 videos</option>
-    </select>
-    <button id="search-btn">Search</button>
+    <div style="display:flex; gap: 1em; flex-wrap: wrap; max-width: 600px;">
+      <div style="flex: 1 1 45%;">
+        <label for="channel-query">Channel Search</label><br />
+        <input type="text" id="channel-query" placeholder="Search channels" />
+      </div>
+      <div style="flex: 1 1 45%;">
+        <label for="keyword-query">Keyword Search</label><br />
+        <input type="text" id="keyword-query" placeholder="Search videos in channel or general" />
+      </div>
+    </div>
+    <button id="search-btn" style="margin-top: 1em;">Search</button>
+    <div id="youtube-results" style="margin-top:1em;"></div>
   </section>
 
   <section id="embed-tab" style="display:none;">
@@ -64,4 +67,4 @@
 </section>
 
 </body>
-</html
+</html>
