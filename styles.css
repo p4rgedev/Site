@@ -48,13 +48,3 @@ button:hover {
   background: #222;
   cursor: pointer;
 }
-
-#search-results div {
-  border-bottom: 1px solid #555;
-  padding-bottom: 0.5em;
-}
-
-#search-results img {
-  vertical-align: middle;
-  margin-right: 0.5em;
-}
