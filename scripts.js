@@ -131,8 +131,6 @@ function loadGame(gameName) {
   window.location.href = `./games/${gameName}/code/index.html`;
 }
 
-// YouTube multi-step search with two input boxes
-
 const youtubeResultsDiv = document.getElementById('youtube-results');
 const channelQueryInput = document.getElementById('channel-query');
 const keywordQueryInput = document.getElementById('keyword-query');
@@ -157,7 +155,7 @@ searchBtn.addEventListener('click', async () => {
   }
 
   try {
-    // Log both queries if provided
+    // Log searches
     const userRef = db.collection('users').doc(currentUser);
     if (channelQuery) {
       await userRef.update({
@@ -173,7 +171,6 @@ searchBtn.addEventListener('click', async () => {
     const apiKey = await getActiveApiKey();
 
     if (channelQuery) {
-      // Search channels first
       let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&maxResults=10&q=${encodeURIComponent(channelQuery)}&key=${apiKey}`;
       let response = await fetch(url);
       let data = await response.json();
@@ -181,10 +178,8 @@ searchBtn.addEventListener('click', async () => {
       if (data.error) throw new Error(data.error.message);
 
       if (data.items.length === 0) {
-        // No channels found, fallback to video search with keywordQuery or channelQuery if no keyword
         await searchVideos(keywordQuery || channelQuery, apiKey);
       } else {
-        // Show channel cards
         data.items.forEach(channel => {
           const channelId = channel.snippet.channelId;
           const title = channel.snippet.title;
@@ -226,7 +221,6 @@ searchBtn.addEventListener('click', async () => {
         });
       }
     } else if (keywordQuery) {
-      // No channel query, search videos directly
       await searchVideos(keywordQuery, apiKey);
     }
   } catch (e) {
@@ -299,7 +293,7 @@ function showEmbeddedVideo(videoId, title) {
 }
 
 async function getActiveApiKey() {
-  const keysSnap = await db.collection('apiKeys').where('active', '==', true).orderBy('usage', 'asc').limit(1).get();
+  const keysSnap = await db.collection('apiKeys').where('active', '==', true).limit(1).get();
   if (keysSnap.empty) throw new Error('No active YouTube API keys available');
   return keysSnap.docs[0].data().key;
 }
