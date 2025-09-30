@@ -1,0 +1,60 @@
+body, html {
+  margin: 0; padding: 0;
+  background: #000;
+  color: #fff;
+  font-family: Arial, sans-serif;
+}
+
+header {
+  padding: 1em;
+  text-align: center;
+}
+
+nav {
+  display: flex;
+  justify-content: center;
+  margin: 1em 0;
+  gap: 1em;
+}
+
+nav button {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.2em;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  padding: 0.2em 0.5em;
+}
+
+nav button.active {
+  border-bottom: 2px solid #fff;
+}
+
+#games-tab, #youtube-tab {
+  padding: 1em;
+}
+
+input, select, button {
+  margin: 0.3em 0.5em 0.3em 0;
+  padding: 0.3em 0.5em;
+  font-size: 1em;
+  background: #000;
+  border: 1px solid #fff;
+  color: #fff;
+}
+
+button:hover {
+  background: #222;
+  cursor: pointer;
+}
+
+#search-results div {
+  border-bottom: 1px solid #555;
+  padding-bottom: 0.5em;
+}
+
+#search-results img {
+  vertical-align: middle;
+  margin-right: 0.5em;
+}
