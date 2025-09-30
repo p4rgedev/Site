@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-
 		const loginForm = document.getElementById('login-form');
 		const registerForm = document.getElementById('register-form');
 		const toggleLink = document.getElementById('toggle-link');
@@ -30,9 +29,11 @@ document.addEventListener('DOMContentLoaded', () => {
 				const username = document.getElementById('username').value.trim();
 				const passwordHash = hashPassword(document.getElementById('password').value);
 
-				const snapshot = await db.ref(`users/${username}`).get();
-				if (!snapshot.exists()) return alert("User not found");
-				const data = snapshot.val();
+				const docRef = db.collection('users').doc(username);
+				const doc = await docRef.get();
+				if (!doc.exists) return alert("User not found");
+
+				const data = doc.data();
 				if (data.banned) return alert("You are banned");
 				if (data.passwordHash !== passwordHash) return alert("Wrong password");
 
@@ -46,10 +47,11 @@ document.addEventListener('DOMContentLoaded', () => {
 				const username = document.getElementById('reg-username').value.trim();
 				const passwordHash = hashPassword(document.getElementById('reg-password').value);
 
-				const snapshot = await db.ref(`users/${username}`).get();
-				if (snapshot.exists()) return alert("Username taken");
+				const docRef = db.collection('users').doc(username);
+				const doc = await docRef.get();
+				if (doc.exists) return alert("Username taken");
 
-				await db.ref(`users/${username}`).set({
+				await docRef.set({
 						username,
 						passwordHash,
 						banned: false,
@@ -57,9 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
 						'yt-searches': []
 				});
 
-				// Auto-login
 				localStorage.setItem('user', username);
 				location.href = 'games.html';
 		});
-
 });

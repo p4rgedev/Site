@@ -1,4 +1,4 @@
-// Initialize Firebase
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyBlODXx-DUc854md33vCUQmfFmgbVVr2Z8",
   authDomain: "wallpuncherhub.firebaseapp.com",
@@ -11,4 +11,6 @@ const firebaseConfig = {
 
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+
+// Initialize Firestore
+const db = firebase.firestore();
