@@ -5,13 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Wall Puncher Central</title>
 <link rel="stylesheet" href="assets/css/style.css">
-<!-- Firebase App (the core Firebase SDK) -->
+
+<!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-<!-- Your Firebase config -->
 <script src="assets/js/firebase.js" defer></script>
 <script src="assets/js/auth.js" defer></script>
+
 <style>
   body {
     display: flex;
@@ -38,6 +39,7 @@
 
   #auth-card input, #auth-card button {
     width: 100%;
+    box-sizing: border-box;
     margin: 0.5rem 0;
     padding: 0.5rem;
     background: #000;
@@ -58,14 +60,14 @@
   <h1 id="auth-title">Login</h1>
 
   <form id="login-form">
-    <input type="text" id="username" placeholder="Username" required>
-    <input type="password" id="password" placeholder="Password" required>
+    <input type="text" id="username" placeholder="Username" required autocomplete="username">
+    <input type="password" id="password" placeholder="Password" required autocomplete="current-password">
     <button type="submit">Login</button>
   </form>
 
   <form id="register-form" style="display:none;">
-    <input type="text" id="reg-username" placeholder="Username" required>
-    <input type="password" id="reg-password" placeholder="Password" required>
+    <input type="text" id="reg-username" placeholder="Username" required autocomplete="username">
+    <input type="password" id="reg-password" placeholder="Password" required autocomplete="new-password">
     <button type="submit">Register</button>
   </form>
 
