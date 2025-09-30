@@ -131,7 +131,7 @@ function loadGame(gameName) {
   window.location.href = `./games/${gameName}/code/index.html`;
 }
 
-// YouTube multi-step search
+// YouTube multi-step search with two input boxes
 
 const youtubeResultsDiv = document.getElementById('youtube-results');
 const channelQueryInput = document.getElementById('channel-query');
@@ -212,7 +212,6 @@ searchBtn.addEventListener('click', async () => {
 
           card.onclick = () => {
             selectedChannelId = channelId;
-            // Search videos in this channel with keywordQuery or prompt if empty
             if (keywordQuery) {
               searchVideos(keywordQuery, apiKey, selectedChannelId);
             } else {
