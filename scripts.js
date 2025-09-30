@@ -28,13 +28,8 @@ async function register(username, password) {
   await userDoc.set({
     banned: false,
     passwordHash,
-    usage: 0,
     username,
-    'yt-searches': [],
-    reset: {
-      'current-time': firebase.firestore.Timestamp.now(),
-      'last-reset': firebase.firestore.Timestamp.fromDate(new Date(0))
-    }
+    'yt-searches': []
   });
 }
 
@@ -110,7 +105,6 @@ btnLogout.addEventListener('click', () => {
 function showMain() {
   loginSection.style.display = 'none';
   mainSection.style.display = 'block';
-  checkUserUsage();
 }
 
 function clearInputs() {
@@ -124,12 +118,6 @@ tabButtons.youtube.addEventListener('click', () => showTab('youtube'));
 tabButtons.embed.addEventListener('click', () => showTab('embed'));
 
 function showTab(tab) {
-  if(tab === 'youtube' && tabButtons.youtube.style.display === 'none') {
-    tab = 'games';
-  }
-  if(tab === 'embed' && tabButtons.embed.style.display === 'none') {
-    tab = 'games';
-  }
   tabs.games.style.display = tab === 'games' ? 'block' : 'none';
   tabs.youtube.style.display = tab === 'youtube' ? 'block' : 'none';
   tabs.embed.style.display = tab === 'embed' ? 'block' : 'none';
@@ -143,65 +131,6 @@ function loadGame(gameName) {
   window.location.href = `./games/${gameName}/code/index.html`;
 }
 
-async function checkUserUsage() {
-  if (!currentUser) return;
-  const userRef = db.collection('users').doc(currentUser);
-  const doc = await userRef.get();
-  if (!doc.exists) return;
-  const usage = doc.data().usage || 0;
-  if (usage >= 4000) {
-    tabButtons.youtube.style.display = 'none';
-    tabButtons.embed.style.display = 'none';
-    if (tabs.youtube.style.display === 'block' || tabs.embed.style.display === 'block') showTab('games');
-  } else {
-    tabButtons.youtube.style.display = 'inline-block';
-    tabButtons.embed.style.display = 'inline-block';
-  }
-}
-
-async function usageResetCheck() {
-  if (!currentUser) return;
-  const userRef = db.collection('users').doc(currentUser);
-  const userDoc = await userRef.get();
-  if (!userDoc.exists) return;
-  const data = userDoc.data();
-  const reset = data.reset || {};
-  const now = firebase.firestore.Timestamp.now().toDate();
-
-  const lastReset = reset['last-reset'] ? reset['last-reset'].toDate() : new Date(0);
-  const today5PM = new Date(now);
-  today5PM.setHours(17, 0, 0, 0);
-
-  if (now >= today5PM && lastReset < today5PM) {
-    await userRef.update({
-      usage: 0,
-      reset: {
-        'current-time': firebase.firestore.Timestamp.now(),
-        'last-reset': firebase.firestore.Timestamp.fromDate(today5PM)
-      }
-    });
-
-    const keysSnapshot = await db.collection('apiKeys').get();
-    const batch = db.batch();
-    keysSnapshot.forEach(doc => {
-      batch.update(doc.ref, { usage: 0, active: true });
-    });
-    await batch.commit();
-
-    console.log('Usage reset done at 5 PM');
-    checkUserUsage();
-  } else {
-    await userRef.set({
-      reset: {
-        'current-time': firebase.firestore.Timestamp.now(),
-        'last-reset': reset['last-reset'] || firebase.firestore.Timestamp.fromDate(new Date(0))
-      }
-    }, { merge: true });
-  }
-}
-
-setInterval(usageResetCheck, 5 * 60 * 1000);
-
 document.getElementById('search-btn').addEventListener('click', async () => {
   if (!currentUser) {
     alert('Please login first.');
@@ -214,40 +143,20 @@ document.getElementById('search-btn').addEventListener('click', async () => {
     return;
   }
   try {
-    const keysSnap = await db.collection('apiKeys').where('active', '==', true).orderBy('usage', 'asc').limit(1).get();
+    // Pick first active API key (no usage tracking)
+    const keysSnap = await db.collection('apiKeys').where('active', '==', true).limit(1).get();
     if (keysSnap.empty) throw new Error('No active YouTube API keys available');
 
     const keyDoc = keysSnap.docs[0];
     const keyData = keyDoc.data();
 
-    const usageIncrement = 3.575 * count;
-    let newKeyUsage = keyData.usage + usageIncrement;
-    let keyActive = keyData.active;
-    if (newKeyUsage >= 2000) {
-      keyActive = false;
-      newKeyUsage = 2000;
-    }
-
+    // Log search query in user's yt-searches array
     const userRef = db.collection('users').doc(currentUser);
-    const userDoc = await userRef.get();
-    const userData = userDoc.data();
-    let newUserUsage = (userData.usage || 0) + usageIncrement;
-    if (newUserUsage > 4000) newUserUsage = 4000;
+    await userRef.update({
+      'yt-searches': firebase.firestore.FieldValue.arrayUnion(query)
+    });
 
-    const batch = db.batch();
-    batch.update(keyDoc.ref, { usage: newKeyUsage, active: keyActive });
-    batch.update(userRef, { usage: newUserUsage });
-    await batch.commit();
-
-    if (newUserUsage >= 4000) {
-      tabButtons.youtube.style.display = 'none';
-      tabButtons.embed.style.display = 'none';
-      if (tabs.youtube.style.display === 'block' || tabs.embed.style.display === 'block') showTab('games');
-    } else {
-      tabButtons.youtube.style.display = 'inline-block';
-      tabButtons.embed.style.display = 'inline-block';
-    }
-
+    // Fetch YouTube videos
     const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=${count}&q=${encodeURIComponent(query)}&key=${keyData.key}`;
     const response = await fetch(url);
     const data = await response.json();
