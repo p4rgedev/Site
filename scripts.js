@@ -61,13 +61,15 @@ const loginMessage = document.getElementById('login-message');
 const btnLogin = document.getElementById('btn-login');
 const btnRegister = document.getElementById('btn-register');
 const btnLogout = document.getElementById('btn-logout');
-const tabs = {
-  games: document.getElementById('games-tab'),
-  youtube: document.getElementById('youtube-tab')
-};
 const tabButtons = {
   games: document.getElementById('tab-games'),
-  youtube: document.getElementById('tab-youtube')
+  youtube: document.getElementById('tab-youtube'),
+  embed: document.getElementById('tab-embed')
+};
+const tabs = {
+  games: document.getElementById('games-tab'),
+  youtube: document.getElementById('youtube-tab'),
+  embed: document.getElementById('embed-tab')
 };
 
 // Login button handler
@@ -131,16 +133,22 @@ function clearInputs() {
 // Tab switching logic
 tabButtons.games.addEventListener('click', () => showTab('games'));
 tabButtons.youtube.addEventListener('click', () => showTab('youtube'));
+tabButtons.embed.addEventListener('click', () => showTab('embed'));
 
 function showTab(tab) {
   if(tab === 'youtube' && tabButtons.youtube.style.display === 'none') {
-    // If YouTube tab hidden, default to games
+    tab = 'games';
+  }
+  if(tab === 'embed' && tabButtons.embed.style.display === 'none') {
     tab = 'games';
   }
   tabs.games.style.display = tab === 'games' ? 'block' : 'none';
   tabs.youtube.style.display = tab === 'youtube' ? 'block' : 'none';
+  tabs.embed.style.display = tab === 'embed' ? 'block' : 'none';
+
   tabButtons.games.classList.toggle('active', tab === 'games');
   tabButtons.youtube.classList.toggle('active', tab === 'youtube');
+  tabButtons.embed.classList.toggle('active', tab === 'embed');
 }
 
 // Load a game by navigating to its index.html
@@ -148,7 +156,7 @@ function loadGame(gameName) {
   window.location.href = `./games/${gameName}/code/index.html`;
 }
 
-// Check user's usage and hide YouTube tab if needed
+// Check user's usage and hide YouTube and Embed tabs if needed
 async function checkUserUsage() {
   if (!currentUser) return;
   const userRef = db.collection('users').doc(currentUser);
@@ -157,13 +165,15 @@ async function checkUserUsage() {
   const usage = doc.data().usage || 0;
   if (usage >= 4000) {
     tabButtons.youtube.style.display = 'none';
-    if (tabs.youtube.style.display === 'block') showTab('games');
+    tabButtons.embed.style.display = 'none';
+    if (tabs.youtube.style.display === 'block' || tabs.embed.style.display === 'block') showTab('games');
   } else {
     tabButtons.youtube.style.display = 'inline-block';
+    tabButtons.embed.style.display = 'inline-block';
   }
 }
 
-// Usage reset logic every 5 minutes
+// Usage reset logic every 5 minutes using currentUser's reset field
 async function usageResetCheck() {
   if (!currentUser) return;
   const userRef = db.collection('users').doc(currentUser);
@@ -178,11 +188,8 @@ async function usageResetCheck() {
   today5PM.setHours(17, 0, 0, 0);
 
   if (now >= today5PM && lastReset < today5PM) {
-    // Reset all users usage & apiKeys usage in batch
-    const batch = db.batch();
-
-    // Reset current user usage (for demo, ideally reset all users in backend)
-    batch.update(userRef, {
+    // Reset current user's usage and update reset timestamps
+    await userRef.update({
       usage: 0,
       reset: {
         'current-time': firebase.firestore.Timestamp.now(),
@@ -190,25 +197,31 @@ async function usageResetCheck() {
       }
     });
 
-    // Reset all apiKeys
+    // Reset all apiKeys usage and set active to true
     const keysSnapshot = await db.collection('apiKeys').get();
+    const batch = db.batch();
     keysSnapshot.forEach(doc => {
       batch.update(doc.ref, { usage: 0, active: true });
     });
-
     await batch.commit();
+
     console.log('Usage reset done at 5 PM');
     checkUserUsage();
   } else {
-    // Update current-time only
-    await userRef.set({ reset: { 'current-time': firebase.firestore.Timestamp.now(), 'last-reset': reset['last-reset'] || firebase.firestore.Timestamp.fromDate(new Date(0)) } }, { merge: true });
+    // Update reset current-time only
+    await userRef.set({
+      reset: {
+        'current-time': firebase.firestore.Timestamp.now(),
+        'last-reset': reset['last-reset'] || firebase.firestore.Timestamp.fromDate(new Date(0))
+      }
+    }, { merge: true });
   }
 }
 
 // Call usage reset every 5 minutes
 setInterval(usageResetCheck, 5 * 60 * 1000);
 
-// YouTube search and usage tracking
+// YouTube search and usage tracking with embedded results
 document.getElementById('search-btn').addEventListener('click', async () => {
   if (!currentUser) {
     alert('Please login first.');
@@ -250,7 +263,11 @@ document.getElementById('search-btn').addEventListener('click', async () => {
 
     if (newUserUsage >= 4000) {
       tabButtons.youtube.style.display = 'none';
-      if (tabs.youtube.style.display === 'block') showTab('games');
+      tabButtons.embed.style.display = 'none';
+      if (tabs.youtube.style.display === 'block' || tabs.embed.style.display === 'block') showTab('games');
+    } else {
+      tabButtons.youtube.style.display = 'inline-block';
+      tabButtons.embed.style.display = 'inline-block';
     }
 
     // Fetch YouTube videos
@@ -259,20 +276,27 @@ document.getElementById('search-btn').addEventListener('click', async () => {
     const data = await response.json();
     if (data.error) throw new Error(data.error.message);
 
-    // Display results
-    const resultsDiv = document.getElementById('search-results');
-    resultsDiv.innerHTML = '';
+    // Clear previous embeds
+    const embedDiv = document.getElementById('embed-results');
+    embedDiv.innerHTML = '';
+
+    // Embed videos
     data.items.forEach(item => {
       const videoId = item.id.videoId;
-      const title = item.snippet.title;
-      const thumb = item.snippet.thumbnails.default.url;
-      resultsDiv.innerHTML += `
-        <div style="margin-bottom:10px;">
-          <img src="${thumb}" alt="Thumbnail" />
-          <a href="https://www.youtube.com/watch?v=${videoId}" target="_blank">${title}</a>
-        </div>
-      `;
+      const iframe = document.createElement('iframe');
+      iframe.width = "100%";
+      iframe.height = "315";
+      iframe.src = `https://www.youtube.com/embed/${videoId}`;
+      iframe.title = item.snippet.title;
+      iframe.frameBorder = "0";
+      iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+      iframe.allowFullscreen = true;
+      iframe.style.marginBottom = '1em';
+      embedDiv.appendChild(iframe);
     });
+
+    // Switch to embed tab automatically
+    showTab('embed');
   } catch (e) {
     alert('Error: ' + e.message);
   }
